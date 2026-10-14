@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сигнал учителю</title>
+<style>
+  :root {
+    --bg: #f2f3f5;
+    --card: #ffffff;
+    --fg: #1f2329;
+    --muted: #6a707b;
+    --line: #e1e4ea;
+    --g: #2b8a3e; --g-soft: #e3f4e7; --g-ink: #1d5e2a;
+    --y: #e0a100; --y-soft: #fff4d1; --y-ink: #7a5500;
+    --r: #d6332f; --r-soft: #fde6e5; --r-ink: #8a1f1c;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .status {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--card); border: 2px solid var(--line); border-radius: 14px;
+    padding: 12px 16px; transition: background .2s, border-color .2s;
+  }
+  .status .lamp { width: 28px; height: 28px; border-radius: 50%; background: #d3d7de; flex: none; }
+  .status .what { font-size: 18px; font-weight: 600; }
+  .status .when { font-size: 13px; color: var(--muted); }
+  .status .net { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .status .net i { width: 8px; height: 8px; border-radius: 50%; background: #c2c6cd; display: inline-block; }
+  .status .net.on i { background: var(--g); }
+  .status.g { background: var(--g-soft); border-color: var(--g); }
+  .status.g .lamp { background: var(--g); }
+  .status.y { background: var(--y-soft); border-color: var(--y); }
+  .status.y .lamp { background: var(--y); }
+  .status.r { background: var(--r-soft); border-color: var(--r); }
+  .status.r .lamp { background: var(--r); }
+  .status.flash { animation: flash .9s ease-in-out 3; }
+  @keyframes flash { 50% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(0,0,0,0.06); } }
+
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .card {
+    font: inherit; color: var(--fg); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    min-height: 170px; padding: 16px 10px;
+    background: var(--card); border: 2px solid var(--line); border-radius: 16px;
+    transition: transform .12s, background .15s, border-color .15s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card:active { transform: scale(0.98); }
+  .card:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+  .card .dot { width: 54px; height: 54px; border-radius: 50%; }
+  .card .t { font-size: 17px; font-weight: 600; text-align: center; }
+  .card .s { font-size: 13px; color: var(--muted); text-align: center; }
+  .card.g .dot { background: var(--g); }
+  .card.y .dot { background: var(--y); }
+  .card.r .dot { background: var(--r); }
+  .card.g[aria-pressed="true"] { background: var(--g-soft); border-color: var(--g); }
+  .card.y[aria-pressed="true"] { background: var(--y-soft); border-color: var(--y); }
+  .card.r[aria-pressed="true"] { background: var(--r-soft); border-color: var(--r); }
+
+  .foot { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-start; }
+  .btn { font: inherit; font-size: 13px; border: 0.5px solid #c9ced8; background: #fff; color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .log { margin: 0 0 0 auto; padding: 0; list-style: none; font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .log b { font-weight: 600; }
+  .log .g b { color: var(--g-ink); } .log .y b { color: var(--y-ink); } .log .r b { color: var(--r-ink); }
+  .err { font-size: 13px; color: var(--r-ink); margin: 0; }
+
+  @media (max-width: 520px) {
+    .cards { grid-template-columns: 1fr; }
+    .card { min-height: 0; flex-direction: row; justify-content: flex-start; padding: 14px; }
+    .card .dot { width: 36px; height: 36px; flex: none; }
+    .card .t, .card .s { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { .card, .status { transition: none; } .status.flash { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="status" id="status" aria-live="assertive">
+    <span class="lamp" aria-hidden="true"></span>
+    <div>
+      <div class="what" id="what">Пока нет сигнала</div>
+      <div class="when" id="when">Нажми карточку, когда решаешь задание</div>
+    </div>
+    <span class="net" id="net"><i></i><span id="netText">подключаюсь…</span></span>
+  </div>
+
+  <div class="cards" role="group" aria-label="Как идёт задание">
+    <button class="card g" data-v="g" aria-pressed="false">
+      <span class="dot" aria-hidden="true"></span>
+      <span><span class="t">Всё понятно</span><br><span class="s">решаю сама</span></span>
+    </button>
+    <button class="card y" data-v="y" aria-pressed="false">
+      <span class="dot" aria-hidden="true"></span>
+      <span><span class="t">Не всё понятно</span><br><span class="s">нужна подсказка</span></span>
+    </button>
+    <button class="card r" data-v="r" aria-pressed="false">
+      <span class="dot" aria-hidden="true"></span>
+      <span><span class="t">Очень сложно</span><br><span class="s">давай разберём вместе</span></span>
+    </button>
+  </div>
+
+  <div class="foot">
+    <button class="btn" id="clear">Сбросить сигнал</button>
+    <p class="err" id="err" hidden></p>
+    <ul class="log" id="log"></ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  var TEXT = { g: 'Всё понятно', y: 'Не всё понятно', r: 'Очень сложно', x: 'Пока нет сигнала' };
+  var HINT = { g: 'Решает сама', y: 'Нужна подсказка', r: 'Нужно разобрать вместе', x: 'Нажми карточку, когда решаешь задание' };
+
+  var params = new URLSearchParams(location.search);
+  var room = (params.get('room') || 'demo').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'demo';
+  var TOPIC = 'itis-board-signal-' + room;
+  var BASE = 'https://ntfy.sh/' + TOPIC;
+
+  var current = 'x';
+  var lastStamp = 0;
+  var history = [];
+  var seen = {};
+
+  function fmt(ts) {
+    var d = new Date(ts * 1000);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function apply(v, ts, live) {
+    if (!TEXT[v]) return;
+    if (ts < lastStamp) return;
+    lastStamp = ts;
+    current = v;
+    var st = document.getElementById('status');
+    st.className = 'status' + (v !== 'x' ? ' ' + v : '');
+    document.getElementById('what').textContent = TEXT[v];
+    document.getElementById('when').textContent = v === 'x' ? HINT.x : HINT[v] + ' · ' + fmt(ts);
+    var cards = document.querySelectorAll('.card');
+    for (var i = 0; i < cards.length; i++) cards[i].setAttribute('aria-pressed', String(cards[i].getAttribute('data-v') === v));
+    if (live && v !== 'x') {
+      st.classList.remove('flash'); void st.offsetWidth; st.classList.add('flash');
+      if (v === 'r') beep();
+    }
+    var top = history[0];
+    if (v !== 'x' && !(top && top.v === v && Math.abs(top.ts - ts) < 10)) {
+      history.unshift({ v: v, ts: ts });
+      history = history.slice(0, 4);
+    }
+    renderLog();
+  }
+
+  function renderLog() {
+    document.getElementById('log').innerHTML = history.map(function (h) {
+      return '<li class="' + h.v + '">' + fmt(h.ts) + ' — <b>' + TEXT[h.v] + '</b></li>';
+    }).join('');
+  }
+
+  var audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 660; g.gain.value = 0.06;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.18);
+    } catch (e) {}
+  }
+
+  function setNet(on, text) {
+    var n = document.getElementById('net');
+    n.className = 'net' + (on ? ' on' : '');
+    document.getElementById('netText').textContent = text;
+  }
+
+  function showErr(t) {
+    var e = document.getElementById('err');
+    e.textContent = t; e.hidden = !t;
+  }
+
+  function send(v) {
+    apply(v, Math.floor(Date.now() / 1000), false);
+    fetch(BASE, { method: 'POST', body: v })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); showErr(''); })
+      .catch(function () { showErr('Сигнал не отправился. Проверь интернет и нажми ещё раз.'); });
+  }
+
+  function connect() {
+    if (!window.EventSource) { setNet(false, 'браузер не поддерживает'); return; }
+    var es = new EventSource(BASE + '/sse?since=2h');
+    es.onopen = function () { setNet(true, 'на связи'); };
+    es.onerror = function () { setNet(false, 'нет связи, переподключаюсь…'); };
+    es.onmessage = function (e) {
+      var m;
+      try { m = JSON.parse(e.data); } catch (err) { return; }
+      if (m.event !== 'message' || seen[m.id]) return;
+      seen[m.id] = true;
+      var live = (Date.now() / 1000 - m.time) < 15;
+      apply(String(m.message || '').trim(), m.time, live);
+    };
+  }
+
+  var cards = document.querySelectorAll('.card');
+  for (var i = 0; i < cards.length; i++) cards[i].addEventListener('click', function () {
+    var v = this.getAttribute('data-v');
+    send(v === current ? 'x' : v);
+  });
+  document.getElementById('clear').addEventListener('click', function () { send('x'); });
+
+  connect();
+})();
+</script>
+</body>
+</html>
