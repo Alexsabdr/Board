@@ -46,8 +46,6 @@
   .status.y .lamp { background: var(--y); }
   .status.r { background: var(--r-soft); border-color: var(--r); }
   .status.r .lamp { background: var(--r); }
-  .status.flash { animation: flash .9s ease-in-out 3; }
-  @keyframes flash { 50% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(0,0,0,0.06); } }
 
   .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   .card {
@@ -84,7 +82,7 @@
     .card .dot { width: 36px; height: 36px; flex: none; }
     .card .t, .card .s { text-align: left; }
   }
-  @media (prefers-reduced-motion: reduce) { .card, .status { transition: none; } .status.flash { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .card, .status { transition: none; } }
 </style>
 </head>
 <body>
@@ -140,7 +138,7 @@
     return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
-  function apply(v, ts, live) {
+  function apply(v, ts) {
     if (!TEXT[v]) return;
     if (ts < lastStamp) return;
     lastStamp = ts;
@@ -151,10 +149,6 @@
     document.getElementById('when').textContent = v === 'x' ? HINT.x : HINT[v] + ' · ' + fmt(ts);
     var cards = document.querySelectorAll('.card');
     for (var i = 0; i < cards.length; i++) cards[i].setAttribute('aria-pressed', String(cards[i].getAttribute('data-v') === v));
-    if (live && v !== 'x') {
-      st.classList.remove('flash'); void st.offsetWidth; st.classList.add('flash');
-      if (v === 'r') beep();
-    }
     var top = history[0];
     if (v !== 'x' && !(top && top.v === v && Math.abs(top.ts - ts) < 10)) {
       history.unshift({ v: v, ts: ts });
@@ -169,17 +163,6 @@
     }).join('');
   }
 
-  var audioCtx = null;
-  function beep() {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.frequency.value = 660; g.gain.value = 0.06;
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime + 0.18);
-    } catch (e) {}
-  }
-
   function setNet(on, text) {
     var n = document.getElementById('net');
     n.className = 'net' + (on ? ' on' : '');
@@ -192,7 +175,7 @@
   }
 
   function send(v) {
-    apply(v, Math.floor(Date.now() / 1000), false);
+    apply(v, Math.floor(Date.now() / 1000));
     fetch(BASE, { method: 'POST', body: v })
       .then(function (r) { if (!r.ok) throw new Error(r.status); showErr(''); })
       .catch(function () { showErr('Сигнал не отправился. Проверь интернет и нажми ещё раз.'); });
@@ -208,8 +191,7 @@
       try { m = JSON.parse(e.data); } catch (err) { return; }
       if (m.event !== 'message' || seen[m.id]) return;
       seen[m.id] = true;
-      var live = (Date.now() / 1000 - m.time) < 15;
-      apply(String(m.message || '').trim(), m.time, live);
+      apply(String(m.message || '').trim(), m.time);
     };
   }
 
