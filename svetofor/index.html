@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Светофор понимания</title>
+<style>
+  :root {
+    --bg: #f2f3f5;
+    --card: #ffffff;
+    --fg: #1f2329;
+    --muted: #6a707b;
+    --line: #e1e4ea;
+    --green: #2b8a3e;
+    --green-soft: #e3f4e7;
+    --yellow: #c78a00;
+    --yellow-soft: #fff4d1;
+    --red: #d6332f;
+    --red-soft: #fde6e5;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .top h1 { font-size: 18px; font-weight: 600; margin: 0; margin-right: auto; }
+  .sub { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .card {
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: background .15s, border-color .15s;
+  }
+  .card.g { background: var(--green-soft); border-color: var(--green); }
+  .card.y { background: var(--yellow-soft); border-color: var(--yellow); }
+  .card.r { background: var(--red-soft); border-color: var(--red); }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .card .ex { font-size: 13px; color: var(--muted); margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  .lights { display: flex; gap: 6px; margin-top: auto; }
+  .light {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font: inherit; font-size: 12px; color: var(--fg);
+    background: #fff; border: 0.5px solid var(--line); border-radius: 10px;
+    padding: 8px 4px; cursor: pointer;
+  }
+  .light .bulb { width: 22px; height: 22px; border-radius: 50%; opacity: .35; transition: opacity .15s, transform .15s; }
+  .light[data-v="g"] .bulb { background: var(--green); }
+  .light[data-v="y"] .bulb { background: #f2b705; }
+  .light[data-v="r"] .bulb { background: var(--red); }
+  .light:hover .bulb { opacity: .7; }
+  .light[aria-pressed="true"] { border-color: var(--fg); font-weight: 600; }
+  .light[aria-pressed="true"] .bulb { opacity: 1; transform: scale(1.12); }
+  .light:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+  .summary { background: var(--card); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .counts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .count { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .count b { font-size: 18px; }
+  .count.g { background: var(--green-soft); color: #1d5e2a; }
+  .count.y { background: var(--yellow-soft); color: #7a5500; }
+  .count.r { background: var(--red-soft); color: #8a1f1c; }
+  .count.n { background: var(--bg); color: var(--muted); }
+  .todo { margin: 0; font-size: 14px; }
+  .todo ul { margin: 4px 0 0; padding-left: 20px; }
+
+  .btn { font: inherit; font-size: 13px; border: 0.5px solid #c9ced8; background: #fff; color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--fg); color: #fff; border-color: var(--fg); }
+  .btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+  .editor { background: var(--card); border: 0.5px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .editor p { margin: 0; font-size: 13px; color: var(--muted); }
+  textarea { width: 100%; min-height: 180px; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; border: 0.5px solid #c9ced8; border-radius: 8px; padding: 8px; resize: vertical; }
+  .linkbox { width: 100%; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; border: 0.5px solid #c9ced8; border-radius: 8px; padding: 8px; background: var(--bg); word-break: break-all; user-select: all; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  @media (prefers-reduced-motion: reduce) { .card, .light .bulb { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Светофор понимания</h1>
+    <button class="btn" id="reset">Сбросить</button>
+    <button class="btn" id="editBtn">Изменить темы</button>
+  </div>
+  <p class="sub">Нажми цвет на каждой карточке. Зелёный — всё понятно, жёлтый — не всё понятно, красный — трудно. Здесь нет правильных ответов.</p>
+
+  <div class="editor" id="editor" hidden>
+    <p>Одна тема на строку. Пример можно добавить после знака «|», например: <b>Умножение десятичных | 0,4 · 0,2</b></p>
+    <textarea id="ta" aria-label="Темы карточек"></textarea>
+    <div class="row">
+      <button class="btn primary" id="saveBtn">Сохранить</button>
+      <button class="btn" id="cancelBtn">Отмена</button>
+      <button class="btn" id="defBtn">Темы по умолчанию</button>
+    </div>
+    <p>Ссылка с этими темами для блока в Holst:</p>
+    <div class="linkbox" id="link"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="summary" aria-live="polite">
+    <div class="counts" id="counts"></div>
+    <div class="todo" id="todo"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DEFAULT = [
+    'Уравнения в одно действие | x + 15 = 42, 3x = 27',
+    'Уравнения в два действия | 5x − 4 = 21',
+    'Сложение дробей с одинаковыми знаменателями | 2/7 + 3/7',
+    'Приведение к общему знаменателю | 1/2 + 1/3',
+    'Смешанное число и неправильная дробь | 3 2/5 = 17/5',
+    'Сложение смешанных чисел | 2 1/3 + 1 1/3',
+    'Сложение и вычитание десятичных | 0,7 + 0,25',
+    'Умножение десятичных | 0,4 · 0,2',
+    'Перевод обыкновенной дроби в десятичную | 3/4 = 0,75'
+  ];
+  var LABELS = { g: 'Понятно', y: 'Не всё', r: 'Трудно' };
+
+  var topics = [];
+  var marks = {};
+
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function parse(lines) {
+    return lines.map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
+      var parts = l.split('|');
+      return { title: parts[0].trim(), ex: (parts.slice(1).join('|') || '').trim() };
+    });
+  }
+
+  function linesFromUrl() {
+    try {
+      var t = new URLSearchParams(location.search).get('t');
+      if (t) return t.split('\n');
+    } catch (e) {}
+    return null;
+  }
+
+  function init() {
+    var fromUrl = linesFromUrl();
+    var saved = store('svetofor-topics');
+    var lines = fromUrl || (saved ? saved.split('\n') : DEFAULT);
+    topics = parse(lines);
+    marks = {};
+    render();
+  }
+
+  function render() {
+    var g = document.getElementById('grid');
+    var h = '';
+    for (var i = 0; i < topics.length; i++) {
+      var m = marks[i] || '';
+      h += '<div class="card ' + m + '"><div><h2>' + esc(topics[i].title) + '</h2>' +
+        (topics[i].ex ? '<p class="ex">' + esc(topics[i].ex) + '</p>' : '') + '</div><div class="lights" role="group" aria-label="' + esc(topics[i].title) + '">';
+      ['g', 'y', 'r'].forEach(function (v) {
+        h += '<button class="light" data-i="' + i + '" data-v="' + v + '" aria-pressed="' + (m === v) + '"><span class="bulb"></span>' + LABELS[v] + '</button>';
+      });
+      h += '</div></div>';
+    }
+    g.innerHTML = h;
+    var bs = g.querySelectorAll('.light');
+    for (var k = 0; k < bs.length; k++) bs[k].addEventListener('click', onLight);
+    summary();
+  }
+
+  function onLight() {
+    var i = Number(this.getAttribute('data-i'));
+    var v = this.getAttribute('data-v');
+    if (marks[i] === v) delete marks[i]; else marks[i] = v;
+    var card = this.closest('.card');
+    card.className = 'card ' + (marks[i] || '');
+    var sib = card.querySelectorAll('.light');
+    for (var k = 0; k < sib.length; k++) sib[k].setAttribute('aria-pressed', String(sib[k].getAttribute('data-v') === marks[i]));
+    summary();
+  }
+
+  function summary() {
+    var c = { g: 0, y: 0, r: 0 };
+    var red = [], yellow = [];
+    for (var i = 0; i < topics.length; i++) {
+      if (marks[i]) c[marks[i]]++;
+      if (marks[i] === 'r') red.push(topics[i].title);
+      if (marks[i] === 'y') yellow.push(topics[i].title);
+    }
+    var left = topics.length - c.g - c.y - c.r;
+    document.getElementById('counts').innerHTML =
+      '<span class="count g">Понятно <b>' + c.g + '</b></span>' +
+      '<span class="count y">Не всё понятно <b>' + c.y + '</b></span>' +
+      '<span class="count r">Трудно <b>' + c.r + '</b></span>' +
+      (left ? '<span class="count n">Без ответа <b>' + left + '</b></span>' : '');
+    var t = '';
+    if (red.length) t += '<p class="todo"><b>Разберём в первую очередь:</b><ul>' + red.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></p>';
+    if (yellow.length) t += '<p class="todo"><b>Повторим:</b><ul>' + yellow.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></p>';
+    if (!left && !red.length && !yellow.length && topics.length) t = '<p class="todo"><b>Всё зелёное.</b> Можно переходить к новой теме.</p>';
+    document.getElementById('todo').innerHTML = t;
+  }
+
+  function linkFor(lines) {
+    var base = location.href.split('?')[0].split('#')[0];
+    return base + '?t=' + encodeURIComponent(lines.join('\n'));
+  }
+
+  function openEditor() {
+    var ed = document.getElementById('editor');
+    var ta = document.getElementById('ta');
+    ta.value = topics.map(function (t) { return t.title + (t.ex ? ' | ' + t.ex : ''); }).join('\n');
+    updateLink();
+    ed.hidden = false;
+    ta.focus();
+  }
+  function updateLink() {
+    var lines = document.getElementById('ta').value.split('\n').filter(function (l) { return l.trim(); });
+    document.getElementById('link').textContent = linkFor(lines);
+  }
+
+  document.getElementById('editBtn').addEventListener('click', openEditor);
+  document.getElementById('ta').addEventListener('input', updateLink);
+  document.getElementById('cancelBtn').addEventListener('click', function () { document.getElementById('editor').hidden = true; });
+  document.getElementById('defBtn').addEventListener('click', function () { document.getElementById('ta').value = DEFAULT.join('\n'); updateLink(); });
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    var lines = document.getElementById('ta').value.split('\n');
+    var parsed = parse(lines);
+    if (!parsed.length) { document.getElementById('ta').focus(); return; }
+    topics = parsed;
+    store('svetofor-topics', lines.filter(function (l) { return l.trim(); }).join('\n'));
+    marks = {};
+    document.getElementById('editor').hidden = true;
+    render();
+  });
+  document.getElementById('reset').addEventListener('click', function () { marks = {}; render(); });
+
+  init();
+})();
+</script>
+</body>
+</html>
