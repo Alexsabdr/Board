@@ -18,34 +18,6 @@
     --crust: #9b7344;
     color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #17181c;
-      --dot: #2c2e35;
-      --panel: #22242b;
-      --fg: #eceef2;
-      --muted: #9ba0ab;
-      --line: #33363f;
-      --accent: #7b96f0;
-      --accent-soft: #29324f;
-      --cheese: #8a6f3d;
-      --crust: #c49a5e;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #17181c;
-    --dot: #2c2e35;
-    --panel: #22242b;
-    --fg: #eceef2;
-    --muted: #9ba0ab;
-    --line: #33363f;
-    --accent: #7b96f0;
-    --accent-soft: #29324f;
-    --cheese: #8a6f3d;
-    --crust: #c49a5e;
-    color-scheme: dark;
-  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
@@ -53,6 +25,8 @@
     color: var(--fg);
     font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .board {
     position: relative;
@@ -62,333 +36,346 @@
     background-image: radial-gradient(var(--dot) 1px, transparent 1px);
     background-size: 22px 22px;
   }
-  canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    touch-action: none;
-    cursor: crosshair;
-  }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
   .panel {
     position: absolute;
     background: var(--panel);
     border: 0.5px solid var(--line);
     border-radius: 12px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     z-index: 2;
   }
-  .title {
-    top: max(16px, env(safe-area-inset-top, 0px));
-    left: max(16px, env(safe-area-inset-left, 0px));
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 14px;
-    font-size: 15px; font-weight: 500;
-  }
-  .title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-  .actions {
-    top: max(16px, env(safe-area-inset-top, 0px));
-    right: max(16px, env(safe-area-inset-right, 0px));
-    display: flex; align-items: center; gap: 4px;
-    padding: 6px;
-  }
-  .tools {
-    left: max(16px, env(safe-area-inset-left, 0px));
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 4px;
-    padding: 6px;
-  }
-  .sep { height: 0.5px; background: var(--line); margin: 4px 6px; }
+  .top { top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px; }
+  .top .name { font-weight: 600; font-size: 15px; margin-right: auto; }
+  .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 8px; padding: 2px; align-items: center; }
+  .seg .lbl { color: var(--muted); font-size: 12px; padding: 0 6px; }
+  .tools { left: 12px; top: 64px; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+  .bottom { left: 12px; bottom: 12px; display: flex; gap: 6px; align-items: center; padding: 6px 8px; }
+  .readout { right: 12px; bottom: 12px; padding: 8px 14px; max-width: calc(100% - 300px); font-variant-numeric: tabular-nums; }
+  .readout b { font-size: 20px; }
+  .readout .hint { color: var(--muted); font-size: 13px; display: block; }
   button {
-    font: inherit;
-    color: var(--fg);
-    background: transparent;
-    border: 0;
-    border-radius: 8px;
-    min-width: 36px; height: 36px;
+    font: inherit; color: var(--fg); background: transparent;
+    border: 0; border-radius: 8px; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 0 8px;
-    cursor: pointer;
   }
   button:hover { background: var(--bg); }
   button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  button.text { font-size: 13px; }
-  .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 8px; padding: 2px; }
-  .seg button { min-width: 34px; height: 30px; font-size: 13px; }
-  .colors { display: flex; gap: 6px; padding: 0 4px; }
-  .colors button { min-width: 0; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
-  .colors button[aria-pressed="true"] { border-color: var(--fg); background-clip: padding-box; }
-  .history {
-    left: max(16px, env(safe-area-inset-left, 0px));
-    bottom: max(16px, env(safe-area-inset-bottom, 0px));
-    display: flex; gap: 4px; padding: 6px;
+  .seg button { min-width: 32px; height: 28px; font-size: 13px; padding: 0 6px; }
+  .text-btn { height: 32px; padding: 0 10px; font-size: 13px; border: 0.5px solid var(--line); }
+  .tool { flex-direction: column; gap: 2px; width: 64px; height: 54px; font-size: 11px; }
+  .tool svg, .icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .icon { width: 34px; height: 34px; }
+  .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+  .sw[aria-pressed="true"] { border-color: var(--fg); background-clip: padding-box; }
+  .vsep { width: 0.5px; align-self: stretch; background: var(--line); margin: 0 2px; }
+  @media (max-width: 560px) {
+    .readout { left: 12px; right: 12px; bottom: 60px; max-width: none; }
   }
-  .readout {
-    left: 50%;
-    bottom: max(16px, env(safe-area-inset-bottom, 0px));
-    transform: translateX(-50%);
-    padding: 8px 16px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    font-size: 15px;
-  }
-  .readout .muted { color: var(--muted); font-size: 13px; margin-left: 8px; }
-  @media (max-width: 640px) {
-    .title span.hide-sm { display: none; }
-    .readout { white-space: normal; text-align: center; max-width: calc(100% - 32px); }
-  }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-
-<div class="board">
+<div class="board" id="boardEl">
   <canvas id="cv" aria-label="Доска: рисуй, ставь пиццу и закрашивай куски"></canvas>
 
-  <div class="panel title">
-    <span class="dot" aria-hidden="true"></span>
-    <span>Доска с пиццей</span>
-  </div>
-
-  <div class="panel actions" role="group" aria-label="Размер пиццы и очистка">
-    <span class="seg" role="group" aria-label="Кусков в пицце">
-      <button data-n="4" class="text">4</button>
-      <button data-n="6" class="text">6</button>
-      <button data-n="8" class="text" aria-pressed="true">8</button>
-      <button data-n="12" class="text">12</button>
+  <div class="panel top">
+    <span class="name">Пицца-дроби</span>
+    <span class="seg" role="group" aria-label="Кусков в новой пицце">
+      <span class="lbl">Кусков:</span>
+      <button data-n="2">2</button>
+      <button data-n="3">3</button>
+      <button data-n="4">4</button>
+      <button data-n="6">6</button>
+      <button data-n="8">8</button>
+      <button data-n="10">10</button>
+      <button data-n="12">12</button>
     </span>
-    <button id="clear" class="text">Очистить</button>
+    <button id="clear" class="text-btn">Очистить</button>
   </div>
 
   <div class="panel tools" role="toolbar" aria-label="Инструменты" aria-orientation="vertical">
-    <button data-tool="pen" aria-pressed="true" aria-label="Карандаш" title="Карандаш">
-      <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>
+    <button class="tool" data-tool="fill">
+      <svg viewBox="0 0 24 24"><path d="M12 3L3 12l7 7 9-9z"/><path d="M14.5 5.5l4 4"/></svg>Закрасить
     </button>
-    <button data-tool="erase" aria-pressed="false" aria-label="Ластик" title="Ластик">
-      <svg viewBox="0 0 24 24"><path d="M3 15l8-8 7 7-5 5H7z"/><path d="M9 21h12"/></svg>
+    <button class="tool" data-tool="pen">
+      <svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>Карандаш
     </button>
-    <div class="sep"></div>
-    <button data-tool="pizza" aria-pressed="false" aria-label="Поставить пиццу" title="Поставить пиццу">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7.8 4.5M12 12l-7.8 4.5"/></svg>
+    <button class="tool" data-tool="erase">
+      <svg viewBox="0 0 24 24"><path d="M3 15l8-8 7 7-5 5H7z"/><path d="M9 21h12"/></svg>Ластик
     </button>
-    <button data-tool="fill" aria-pressed="false" aria-label="Закрасить кусок" title="Закрасить кусок">
-      <svg viewBox="0 0 24 24"><path d="M12 3L3 12l7 7 9-9z"/><path d="M14.5 5.5l4 4"/></svg>
+    <button class="tool" data-tool="pizza">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12V3M12 12l7.8 4.5M12 12l-7.8 4.5"/></svg>Пицца
     </button>
-    <div class="sep"></div>
-    <div class="colors" role="group" aria-label="Цвет">
-      <button data-color="#3b5bdb" aria-pressed="true" aria-label="Синий" style="background:#3b5bdb"></button>
-      <button data-color="#e03131" aria-pressed="false" aria-label="Красный" style="background:#e03131"></button>
-      <button data-color="#2f9e44" aria-pressed="false" aria-label="Зелёный" style="background:#2f9e44"></button>
-      <button data-color="#f08c00" aria-pressed="false" aria-label="Оранжевый" style="background:#f08c00"></button>
-      <button data-color="#1e1f24" aria-pressed="false" aria-label="Чёрный" style="background:#1e1f24"></button>
-    </div>
   </div>
 
-  <div class="panel history" role="group" aria-label="История">
-    <button id="undo" aria-label="Отменить" title="Отменить">
+  <div class="panel bottom" role="group" aria-label="Цвет и история">
+    <button class="icon" id="undo" aria-label="Отменить" title="Отменить">
       <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg>
     </button>
-    <button id="redo" aria-label="Вернуть" title="Вернуть">
+    <button class="icon" id="redo" aria-label="Вернуть" title="Вернуть">
       <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg>
     </button>
+    <span class="vsep"></span>
+    <button class="sw" data-color="#3b5bdb" aria-label="Синий" style="background:#3b5bdb"></button>
+    <button class="sw" data-color="#e03131" aria-label="Красный" style="background:#e03131"></button>
+    <button class="sw" data-color="#2f9e44" aria-label="Зелёный" style="background:#2f9e44"></button>
+    <button class="sw" data-color="#f08c00" aria-label="Оранжевый" style="background:#f08c00"></button>
+    <button class="sw" data-color="#1e1f24" aria-label="Чёрный" style="background:#1e1f24"></button>
   </div>
 
-  <div class="panel readout" id="readout" aria-live="polite">
-    <span id="frac">Поставь пиццу</span><span class="muted" id="hint">выбери инструмент справа</span>
+  <div class="panel readout" aria-live="polite">
+    <b id="frac">0/8</b>
+    <span class="hint" id="hint"></span>
   </div>
 </div>
 
 <script>
 (function () {
-  const cv = document.getElementById('cv');
-  const ctx = cv.getContext('2d');
-  let dpr = 1;
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var W = 0, H = 0;
 
-  let objs = [];      // strokes and pizzas, drawn in order
-  let undoStack = [];
-  let redoStack = [];
-  let tool = 'pen';
-  let color = '#3b5bdb';
-  let n = 8;
-  let last = null;    // last pizza touched
-  let drawing = null; // active stroke or erase gesture
+  var objs = [];
+  var nextId = 1;
+  var lastId = null;
+  var undoStack = [], redoStack = [];
+  var tool = 'fill';
+  var color = '#3b5bdb';
+  var n = 8;
+  var drawing = null;
 
-  const PIZZA_R = 120;
+  var HINTS = {
+    fill: 'Нажимай на куски пиццы, чтобы закрасить. Нажми ещё раз, чтобы снять.',
+    pen: 'Рисуй и пиши ответ мышью или пальцем.',
+    erase: 'Проведи по линии, чтобы стереть. Нажми на пиццу, чтобы убрать её.',
+    pizza: 'Нажми на пустое место доски, чтобы поставить новую пиццу.'
+  };
 
-  function cloneState(s) { return JSON.stringify(s); }
+  function save() { return JSON.stringify({ objs: objs, lastId: lastId, nextId: nextId }); }
+  function load(s) { var d = JSON.parse(s); objs = d.objs; lastId = d.lastId; nextId = d.nextId; }
   function pushHistory() {
-    undoStack.push(cloneState(objs));
-    if (undoStack.length > 100) undoStack.shift();
+    undoStack.push(save());
+    if (undoStack.length > 200) undoStack.shift();
     redoStack = [];
   }
 
+  function pizzaR() { return Math.max(60, Math.min(150, Math.min(W, H) * 0.22)); }
+
   function resize() {
-    const r = cv.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(r.width * dpr);
-    cv.height = Math.round(r.height * dpr);
+    var r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!objs.length && !undoStack.length) {
+      addPizza(W / 2, H / 2 + 10, false);
+    }
     draw();
   }
 
-  function css(name, fb) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fb;
+  function addPizza(x, y, record) {
+    if (record) pushHistory();
+    var p = { id: nextId++, type: 'pizza', x: x, y: y, r: pizzaR(), n: n, fills: {} };
+    objs.push(p);
+    lastId = p.id;
+  }
+
+  function byId(id) {
+    for (var i = 0; i < objs.length; i++) if (objs[i].id === id) return objs[i];
+    return null;
   }
 
   function draw() {
-    const w = cv.clientWidth, h = cv.clientHeight;
-    ctx.clearRect(0, 0, w, h);
-    const crust = css('--crust', '#9b7344');
-    const cheese = css('--cheese', '#fbe7b0');
-    for (const o of objs) {
-      if (o.type === 'stroke') {
-        if (o.pts.length < 2) continue;
-        ctx.beginPath();
-        ctx.moveTo(o.pts[0][0], o.pts[0][1]);
-        for (let k = 1; k < o.pts.length; k++) ctx.lineTo(o.pts[k][0], o.pts[k][1]);
-        ctx.strokeStyle = o.color;
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-      } else if (o.type === 'pizza') {
-        const seg = 2 * Math.PI / o.n;
-        for (let i = 0; i < o.n; i++) {
-          const a0 = -Math.PI / 2 + i * seg, a1 = a0 + seg;
-          ctx.beginPath();
-          ctx.moveTo(o.x, o.y);
-          ctx.arc(o.x, o.y, o.r, a0, a1);
-          ctx.closePath();
-          ctx.fillStyle = cheese;
-          ctx.fill();
-          if (o.fills[i]) {
-            ctx.globalAlpha = 0.5;
-            ctx.fillStyle = o.fills[i];
-            ctx.fill();
-            ctx.globalAlpha = 1;
-          }
-          ctx.strokeStyle = crust;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(o.x, o.y, o.r, 0, 2 * Math.PI);
-        ctx.strokeStyle = crust;
-        ctx.lineWidth = 5;
-        ctx.stroke();
-      }
+    ctx.clearRect(0, 0, W, H);
+    for (var k = 0; k < objs.length; k++) {
+      var o = objs[k];
+      if (o.type === 'pizza') drawPizza(o);
+    }
+    for (var m = 0; m < objs.length; m++) {
+      var s = objs[m];
+      if (s.type !== 'stroke' || s.pts.length < 1) continue;
+      ctx.beginPath();
+      ctx.moveTo(s.pts[0][0], s.pts[0][1]);
+      if (s.pts.length === 1) ctx.lineTo(s.pts[0][0] + 0.1, s.pts[0][1]);
+      for (var j = 1; j < s.pts.length; j++) ctx.lineTo(s.pts[j][0], s.pts[j][1]);
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
     }
     updateReadout();
   }
 
+  function drawPizza(o) {
+    var seg = 2 * Math.PI / o.n;
+    var selected = o.id === lastId;
+    for (var i = 0; i < o.n; i++) {
+      var a0 = -Math.PI / 2 + i * seg, a1 = a0 + seg;
+      ctx.beginPath();
+      ctx.moveTo(o.x, o.y);
+      ctx.arc(o.x, o.y, o.r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = '#fbe7b0';
+      ctx.fill();
+      if (o.fills[i]) {
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = o.fills[i];
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = '#9b7344';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#9b7344';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    if (selected && countPizzas() > 1) {
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r + 8, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#3b5bdb';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function countPizzas() {
+    var c = 0;
+    for (var i = 0; i < objs.length; i++) if (objs[i].type === 'pizza') c++;
+    return c;
+  }
+
   function pos(e) {
-    const r = cv.getBoundingClientRect();
+    var r = cv.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   }
 
   function pizzaAt(x, y) {
-    for (let k = objs.length - 1; k >= 0; k--) {
-      const o = objs[k];
+    for (var k = objs.length - 1; k >= 0; k--) {
+      var o = objs[k];
       if (o.type === 'pizza' && Math.hypot(x - o.x, y - o.y) <= o.r) return o;
     }
     return null;
   }
 
   function sliceOf(o, x, y) {
-    let a = Math.atan2(y - o.y, x - o.x) + Math.PI / 2;
+    var a = Math.atan2(y - o.y, x - o.x) + Math.PI / 2;
     if (a < 0) a += 2 * Math.PI;
     return Math.floor(a / (2 * Math.PI / o.n)) % o.n;
   }
 
-  function eraseAt(x, y) {
-    let changed = false;
+  function eraseStrokesAt(x, y) {
+    var before = objs.length;
     objs = objs.filter(function (o) {
-      if (o.type === 'stroke') {
-        const hit = o.pts.some(function (p) { return Math.hypot(p[0] - x, p[1] - y) < 14; });
-        if (hit) { changed = true; return false; }
-      } else if (o.type === 'pizza') {
-        if (Math.hypot(x - o.x, y - o.y) <= o.r) { changed = true; return false; }
+      if (o.type !== 'stroke') return true;
+      if (o.pts.length === 1) return Math.hypot(o.pts[0][0] - x, o.pts[0][1] - y) >= 14;
+      for (var i = 1; i < o.pts.length; i++) {
+        if (segDist(x, y, o.pts[i - 1], o.pts[i]) < 14) return false;
       }
       return true;
     });
-    if (changed) draw();
+    return objs.length !== before;
+  }
+
+  function segDist(x, y, a, b) {
+    var dx = b[0] - a[0], dy = b[1] - a[1];
+    var len = dx * dx + dy * dy;
+    var t = len ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / len)) : 0;
+    return Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy));
   }
 
   function gcd(a, b) { return b ? gcd(b, a % b) : a; }
 
   function updateReadout() {
-    const frac = document.getElementById('frac');
-    const hint = document.getElementById('hint');
-    if (!last || objs.indexOf(last) < 0) {
-      frac.textContent = 'Поставь пиццу';
-      hint.textContent = 'выбери инструмент справа';
-      return;
-    }
-    const k = Object.keys(last.fills).length;
-    const total = last.n;
-    if (k === 0) {
-      frac.textContent = '0/' + total;
-      hint.textContent = 'закрась куски инструментом «Закрасить кусок»';
-    } else if (k === total) {
-      frac.textContent = '1 (вся пицца)';
-      hint.textContent = '';
+    var frac = document.getElementById('frac');
+    var p = byId(lastId);
+    if (!p) {
+      frac.textContent = 'Пиццы нет';
     } else {
-      const g = gcd(k, total);
-      frac.textContent = (k / g) + '/' + (total / g);
-      hint.textContent = (g > 1 ? '(' + k + '/' + total + ')  ' : '') + '≈ ' + (Math.round(k / total * 1000) / 1000).toString().replace('.', ',');
+      var k = Object.keys(p.fills).length;
+      if (k === 0) frac.textContent = '0/' + p.n;
+      else if (k === p.n) frac.textContent = p.n + '/' + p.n + ' = 1';
+      else {
+        var g = gcd(k, p.n);
+        var dec = (Math.round(k / p.n * 1000) / 1000).toString().replace('.', ',');
+        frac.textContent = k + '/' + p.n + (g > 1 ? ' = ' + (k / g) + '/' + (p.n / g) : '') + ' ≈ ' + dec;
+      }
     }
+    document.getElementById('hint').textContent = HINTS[tool];
   }
 
   function setTool(t) {
     tool = t;
-    document.querySelectorAll('[data-tool]').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.tool === t));
-    });
-    cv.style.cursor = t === 'pizza' || t === 'fill' ? 'pointer' : (t === 'erase' ? 'cell' : 'crosshair');
+    var bs = document.querySelectorAll('[data-tool]');
+    for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', String(bs[i].getAttribute('data-tool') === t));
+    cv.style.cursor = (t === 'fill' || t === 'pizza') ? 'pointer' : (t === 'erase' ? 'cell' : 'crosshair');
+    updateReadout();
+  }
+
+  function setN(v) {
+    n = v;
+    var bs = document.querySelectorAll('[data-n]');
+    for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', String(Number(bs[i].getAttribute('data-n')) === v));
   }
 
   cv.addEventListener('pointerdown', function (e) {
-    const p = pos(e);
-    const x = p[0], y = p[1];
+    e.preventDefault();
+    var p = pos(e), x = p[0], y = p[1];
+    var pz;
     if (tool === 'pizza') {
-      pushHistory();
-      const pz = { type: 'pizza', x: x, y: y, r: PIZZA_R, n: n, fills: {} };
-      objs.push(pz);
-      last = pz;
+      addPizza(x, y, true);
       draw();
       return;
     }
     if (tool === 'fill') {
-      const pz = pizzaAt(x, y);
+      pz = pizzaAt(x, y);
       if (!pz) return;
       pushHistory();
-      const i = sliceOf(pz, x, y);
+      var i = sliceOf(pz, x, y);
       if (pz.fills[i]) delete pz.fills[i]; else pz.fills[i] = color;
-      last = pz;
+      lastId = pz.id;
       draw();
       return;
     }
     if (tool === 'erase') {
       pushHistory();
+      var hit = eraseStrokesAt(x, y);
+      if (!hit) {
+        pz = pizzaAt(x, y);
+        if (pz) {
+          objs = objs.filter(function (o) { return o !== pz; });
+          if (lastId === pz.id) lastId = null;
+          hit = true;
+        }
+      }
+      if (!hit) undoStack.pop();
       drawing = { erase: true };
-      cv.setPointerCapture(e.pointerId);
-      eraseAt(x, y);
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      draw();
       return;
     }
     pushHistory();
-    drawing = { type: 'stroke', pts: [p], color: color, w: 3 };
+    drawing = { id: nextId++, type: 'stroke', pts: [p], color: color };
     objs.push(drawing);
-    cv.setPointerCapture(e.pointerId);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
     draw();
   });
 
   cv.addEventListener('pointermove', function (e) {
     if (!drawing) return;
-    const p = pos(e);
-    if (drawing.erase) { eraseAt(p[0], p[1]); return; }
+    var p = pos(e);
+    if (drawing.erase) {
+      if (eraseStrokesAt(p[0], p[1])) draw();
+      return;
+    }
     drawing.pts.push(p);
     draw();
   });
@@ -396,61 +383,68 @@
   function endDrawing() { drawing = null; }
   cv.addEventListener('pointerup', endDrawing);
   cv.addEventListener('pointercancel', endDrawing);
+  cv.addEventListener('pointerleave', function () { if (drawing && drawing.erase) drawing = null; });
 
   function undo() {
     if (!undoStack.length) return;
-    redoStack.push(cloneState(objs));
-    objs = JSON.parse(undoStack.pop());
-    if (last && objs.indexOf(last) < 0) last = null;
+    redoStack.push(save());
+    load(undoStack.pop());
     draw();
   }
   function redo() {
     if (!redoStack.length) return;
-    undoStack.push(cloneState(objs));
-    objs = JSON.parse(redoStack.pop());
-    if (last && objs.indexOf(last) < 0) last = null;
+    undoStack.push(save());
+    load(redoStack.pop());
     draw();
   }
   function clearAll() {
-    if (!objs.length) return;
     pushHistory();
     objs = [];
-    last = null;
+    lastId = null;
+    addPizza(W / 2, H / 2 + 10, false);
+    setTool('fill');
     draw();
   }
 
-  document.querySelectorAll('[data-tool]').forEach(function (b) {
-    b.addEventListener('click', function () { setTool(b.dataset.tool); });
-  });
-  document.querySelectorAll('[data-color]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      color = b.dataset.color;
-      document.querySelectorAll('[data-color]').forEach(function (x) {
-        x.setAttribute('aria-pressed', String(x === b));
-      });
-      if (tool === 'erase' || tool === 'pizza') setTool('pen');
-    });
-  });
-  document.querySelectorAll('[data-n]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      n = Number(b.dataset.n);
-      document.querySelectorAll('[data-n]').forEach(function (x) {
-        x.setAttribute('aria-pressed', String(x === b));
-      });
+  var tb = document.querySelectorAll('[data-tool]');
+  for (var a = 0; a < tb.length; a++) tb[a].addEventListener('click', function () { setTool(this.getAttribute('data-tool')); });
+
+  var nb = document.querySelectorAll('[data-n]');
+  for (var b = 0; b < nb.length; b++) nb[b].addEventListener('click', function () {
+    var v = Number(this.getAttribute('data-n'));
+    setN(v);
+    var p = byId(lastId);
+    if (p) {
+      pushHistory();
+      p.n = v;
+      p.fills = {};
+      draw();
+    } else {
       setTool('pizza');
-    });
+    }
   });
+
+  var cb = document.querySelectorAll('[data-color]');
+  for (var c = 0; c < cb.length; c++) cb[c].addEventListener('click', function () {
+    color = this.getAttribute('data-color');
+    for (var i = 0; i < cb.length; i++) cb[i].setAttribute('aria-pressed', String(cb[i] === this));
+    if (tool === 'erase' || tool === 'pizza') setTool('pen');
+  });
+
   document.getElementById('undo').addEventListener('click', undo);
   document.getElementById('redo').addEventListener('click', redo);
   document.getElementById('clear').addEventListener('click', clearAll);
 
-  window.addEventListener('resize', resize);
   window.addEventListener('keydown', function (e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'я')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
   });
 
-  document.querySelector('[data-n="8"]').setAttribute('aria-pressed', 'true');
-  setTool('pen');
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(cv);
+  window.addEventListener('resize', resize);
+
+  setN(8);
+  cb[0].setAttribute('aria-pressed', 'true');
+  setTool('fill');
   resize();
 })();
 </script>
