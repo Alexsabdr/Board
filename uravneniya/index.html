@@ -90,6 +90,17 @@
   .steps li { font-family: var(--hand); font-size: 30px; line-height: 1.2; color: var(--ink); }
 
   .help { font-size: 12.5px; color: var(--muted); margin: 0; }
+  .editor { background: #fff; border: 0.5px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .editor h2 { font-size: 15px; margin: 0; }
+  .editor p { margin: 0; font-size: 13px; color: var(--muted); }
+  .editor textarea { width: 100%; min-height: 150px; font: 15px/1.6 ui-monospace, Menlo, Consolas, monospace; border: 0.5px solid #c9ced8; border-radius: 8px; padding: 8px; resize: vertical; }
+  .parsed { list-style: none; margin: 0; padding: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .parsed li { padding: 2px 0; }
+  .parsed .ok { color: #1d5e2a; }
+  .parsed .bad { color: var(--red); }
+  .linkbox { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; border: 0.5px solid #c9ced8; border-radius: 8px; padding: 8px; background: var(--bg); word-break: break-all; user-select: all; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .link-btn { border: 0; background: none; font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; }
 
   @media (max-width: 480px) {
     .sheet { padding: 14px 12px 16px 40px; }
@@ -106,6 +117,7 @@
       <button data-level="1" aria-pressed="true">В одно действие</button>
       <button data-level="2" aria-pressed="false">В два действия</button>
       <button data-level="3" aria-pressed="false">С дробями</button>
+      <button data-level="my" aria-pressed="false" id="myBtn" hidden>Мои</button>
     </div>
     <span class="score">Решено: <b id="solved">0</b></span>
   </div>
@@ -127,7 +139,20 @@
     <div id="note"></div>
   </div>
 
-  <p class="help">Ответ можно писать целым числом, десятичной дробью (4,5) или обыкновенной (3/7).</p>
+  <p class="help">Ответ можно писать целым числом, десятичной дробью (4,5) или обыкновенной (3/7). <button class="link-btn" id="editBtn" type="button">Свои уравнения</button></p>
+
+  <div class="editor" id="editor" hidden>
+    <h2>Свои уравнения</h2>
+    <p>Одно уравнение на строку. Можно писать так: <b>5x + 3 = 28</b>, <b>72 : x = 8</b>, <b>(x − 4) · 3 = 15</b>, <b>x + 2,5 = 7</b>, <b>x − 3/8 = 1/8</b>, <b>2 1/3 + x = 5</b>. Умножение — <b>*</b> или <b>·</b>, деление — <b>:</b>. Ответ считается сам.</p>
+    <textarea id="ta" aria-label="Уравнения, по одному на строку" spellcheck="false"></textarea>
+    <ul class="parsed" id="parsed"></ul>
+    <div class="row">
+      <button class="btn primary" id="saveBtn" type="button">Сохранить и начать</button>
+      <button class="btn" id="cancelBtn" type="button">Закрыть</button>
+    </div>
+    <p>Ссылка с этими уравнениями для блока в Holst:</p>
+    <div class="linkbox" id="link"></div>
+  </div>
 </div>
 
 <script>
@@ -147,7 +172,7 @@
 
   function onlyTwosFives(d) { while (d % 2 === 0) d /= 2; while (d % 5 === 0) d /= 5; return d === 1; }
   function fmt(f, dec) {
-    if (f.d === 1) return String(f.n);
+    if (f.d === 1) return (f.n < 0 ? '−' : '') + Math.abs(f.n);
     if (dec && onlyTwosFives(f.d)) {
       var k = 0, p = 1;
       while (p % f.d !== 0) { p *= 10; k++; }
@@ -156,7 +181,9 @@
       while (s.length < k + 1) s = '0' + s;
       return (f.n < 0 ? '−' : '') + s.slice(0, -k) + ',' + s.slice(-k);
     }
-    return (f.n < 0 ? '−' : '') + Math.abs(f.n) + '/' + f.d;
+    var an = Math.abs(f.n), sg = f.n < 0 ? '−' : '';
+    if (an > f.d) return sg + Math.floor(an / f.d) + ' ' + (an % f.d) + '/' + f.d;
+    return sg + an + '/' + f.d;
   }
   function wrap(s) { return /[\/−-]/.test(s) ? '(' + s + ')' : s; }
 
@@ -242,18 +269,170 @@
     ]
   };
 
-  var LEVEL_NAME = { 1: 'В одно действие', 2: 'В два действия', 3: 'С дробями' };
+
+  // ---------- Разбор и решение своих уравнений ----------
+  function tokenize(src) {
+    var s = src.replace(/[хХX]/g, 'x').replace(/[−–—]/g, '-').replace(/[·×*]/g, '*').replace(/÷/g, ':');
+    var toks = [], i = 0, m, rest;
+    while (i < s.length) {
+      var ch = s[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      rest = s.slice(i);
+      if ((m = rest.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)(?![\d.,])/)) && +m[3] !== 0) {
+        toks.push({ t: 'num', v: add(I(+m[1]), F(+m[2], +m[3])), s: m[1] + ' ' + m[2] + '/' + m[3] }); i += m[0].length; continue;
+      }
+      if ((m = rest.match(/^(\d+)\s*\/\s*(\d+)(?![\d.,])/)) && +m[2] !== 0) {
+        toks.push({ t: 'num', v: F(+m[1], +m[2]), s: m[1] + '/' + m[2] }); i += m[0].length; continue;
+      }
+      if ((m = rest.match(/^(\d+)(?:[.,](\d+))?/))) {
+        var fp = m[2] || '';
+        toks.push({ t: 'num', v: F(parseInt(m[1] + fp, 10), Math.pow(10, fp.length)), s: m[0].replace('.', ',') }); i += m[0].length; continue;
+      }
+      if (ch === 'x') { toks.push({ t: 'x' }); i++; continue; }
+      if ('+-*:/()='.indexOf(ch) >= 0) { toks.push({ t: ch }); i++; continue; }
+      throw new Error('Непонятный символ «' + ch + '»');
+    }
+    return toks;
+  }
+
+  function parseEquation(src) {
+    var toks = tokenize(src), pos = 0;
+    var eqCount = toks.filter(function (t) { return t.t === '='; }).length;
+    if (eqCount !== 1) throw new Error('Нужен ровно один знак «=»');
+    if (!toks.some(function (t) { return t.t === 'x'; })) throw new Error('В уравнении нет x');
+    function peek() { return toks[pos]; }
+    function take(t) { var k = toks[pos]; if (!k || k.t !== t) throw new Error('Проверь запись'); pos++; return k; }
+    function expr() {
+      var node = term();
+      while (peek() && (peek().t === '+' || peek().t === '-')) { var op = toks[pos++].t; node = { op: op, a: node, b: term() }; }
+      return node;
+    }
+    function term() {
+      var node = factor();
+      for (;;) {
+        var k = peek();
+        if (k && (k.t === '*' || k.t === ':' || k.t === '/')) { pos++; node = { op: k.t === '*' ? '*' : ':', a: node, b: factor() }; }
+        else if (k && (k.t === 'x' || k.t === '(')) { node = { op: '*', a: node, b: factor(), imp: true }; }
+        else break;
+      }
+      return node;
+    }
+    function factor() {
+      var k = peek();
+      if (!k) throw new Error('Уравнение обрывается');
+      if (k.t === '-') { pos++; return { op: 'neg', a: factor() }; }
+      if (k.t === 'num') { pos++; return { num: k.v, s: k.s }; }
+      if (k.t === 'x') { pos++; return { x: true }; }
+      if (k.t === '(') { pos++; var e = expr(); take(')'); return { par: e }; }
+      throw new Error('Проверь запись');
+    }
+    var L = expr(); take('='); var R = expr();
+    if (pos !== toks.length) throw new Error('Проверь запись');
+    return { L: L, R: R };
+  }
+
+  function ev(n, x) {
+    if (n.num) return n.num;
+    if (n.x) return x;
+    if (n.par) return ev(n.par, x);
+    if (n.op === 'neg') { var a0 = ev(n.a, x); return a0 && F(-a0.n, a0.d); }
+    var a = ev(n.a, x), b = ev(n.b, x);
+    if (!a || !b) return null;
+    if (n.op === '+') return add(a, b);
+    if (n.op === '-') return sub(a, b);
+    if (n.op === '*') return mul(a, b);
+    if (b.n === 0) return null;
+    return div(a, b);
+  }
+
+  var PREC = { '+': 1, '-': 1, '*': 2, ':': 2 };
+  function show(n, v) {
+    if (n.num) return n.s;
+    if (n.x) return v === undefined ? 'x' : v;
+    if (n.par) return '(' + show(n.par, v) + ')';
+    if (n.op === 'neg') return '−' + show(n.a, v);
+    var a = show(n.a, v), b = show(n.b, v);
+    var sym = { '+': ' + ', '-': ' − ', '*': ' · ', ':': ' : ' }[n.op];
+    if (n.imp && v === undefined && (n.b.x || n.b.par)) return a + b;
+    if (v !== undefined && n.b.x && /[\/,−]/.test(v)) b = '(' + v + ')';
+    if (v !== undefined && n.a.x && /[\/,−]/.test(v) && n.op !== '+' ) a = '(' + v + ')';
+    return a + sym + b;
+  }
+
+  function solveEq(eqn) {
+    function f(x) { var l = ev(eqn.L, x), r = ev(eqn.R, x); return l && r ? sub(l, r) : null; }
+    var xs = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23].map(I), pts = [];
+    for (var i = 0; i < xs.length && pts.length < 4; i++) { var y = f(xs[i]); if (y) pts.push([xs[i], y]); }
+    if (pts.length < 4) throw new Error('Не получается решить');
+    if (pts.every(function (p) { return eq(p[1], pts[0][1]); })) {
+      throw new Error(pts[0][1].n === 0 ? 'Подходит любое x' : 'Решений нет');
+    }
+    // f(x) = (a x + b) / (c x + d): строки [x, 1, -y x, -y]
+    var M = pts.slice(0, 3).map(function (p) { return [p[0], I(1), F(-p[1].n * p[0].n, p[1].d * p[0].d), F(-p[1].n, p[1].d)]; });
+    var piv = [], r = 0;
+    for (var c = 0; c < 4 && r < 3; c++) {
+      var k = -1; for (var j = r; j < 3; j++) if (M[j][c].n !== 0) { k = j; break; }
+      if (k < 0) continue;
+      var tmp = M[r]; M[r] = M[k]; M[k] = tmp;
+      var pv = M[r][c];
+      for (var q = 0; q < 4; q++) M[r][q] = div(M[r][q], pv);
+      for (var j2 = 0; j2 < 3; j2++) if (j2 !== r && M[j2][c].n !== 0) {
+        var fac = M[j2][c];
+        for (var q2 = 0; q2 < 4; q2++) M[j2][q2] = sub(M[j2][q2], mul(fac, M[r][q2]));
+      }
+      piv.push(c); r++;
+    }
+    if (piv.length !== 3) throw new Error('Слишком сложное уравнение');
+    var free = [0, 1, 2, 3].filter(function (c) { return piv.indexOf(c) < 0; })[0];
+    var sol = [null, null, null, null]; sol[free] = I(1);
+    for (var rr = 0; rr < 3; rr++) sol[piv[rr]] = F(-M[rr][free].n, M[rr][free].d);
+    var A = sol[0], B = sol[1];
+    if (A.n === 0) throw new Error('Решений нет');
+    var root = F(-B.n * A.d, B.d * A.n);
+    var fr = f(root);
+    if (!fr || fr.n !== 0) throw new Error('Не получается решить');
+    var p4 = pts[3], den4 = add(mul(sol[2], p4[0]), sol[3]);
+    if (!eq(add(mul(A, p4[0]), B), mul(p4[1], den4))) throw new Error('Слишком сложное уравнение');
+    return root;
+  }
+
+  function buildCustom(line) {
+    var eqn = parseEquation(line);
+    var root = solveEq(eqn);
+    var text = show(eqn.L) + ' = ' + show(eqn.R);
+    var dec = /,/.test(line) || !/\//.test(line);
+    var rightHasX = JSON.stringify(eqn.R).indexOf('"x":true') >= 0;
+    return {
+      custom: true, dec: dec, text: text, x: root,
+      left: function (x) { var l = ev(eqn.L, x), r = ev(eqn.R, x); return l && r ? { l: l, r: r } : null; },
+      ls: function (v) { return show(eqn.L, v); }, rsx: function (v) { return show(eqn.R, v); },
+      rightHasX: rightHasX, right: rightHasX ? null : ev(eqn.R, I(0)),
+      steps: ['x = ' + fmt(root, dec)],
+      rule: 'Определи, каким компонентом является x или выражение с x: слагаемое, уменьшаемое, вычитаемое, множитель, делимое или делитель. Вспомни правило и найди его. Если действий два, начни с последнего действия.'
+    };
+  }
+
+  var LEVEL_NAME = { 1: 'В одно действие', 2: 'В два действия', 3: 'С дробями', my: 'Свои уравнения' };
+  var myList = [], myIdx = 0;
   var level = 1, task = null, solved = 0, done = false, lastText = '', tries = 0;
 
   var $ = function (id) { return document.getElementById(id); };
 
   function newTask() {
-    var t;
-    do { t = pick(GEN[level])(); } while (t.text === lastText);
+    var t, meta;
+    if (level === 'my') {
+      if (myIdx >= myList.length) { finishList(); return; }
+      t = myList[myIdx];
+      meta = 'Уравнение ' + (myIdx + 1) + ' из ' + myList.length + '. Найди x и запиши ответ.';
+    } else {
+      do { t = pick(GEN[level])(); } while (t.text === lastText);
+      if (level !== 3) t.dec = true;
+      meta = LEVEL_NAME[level] + '. Найди x и запиши ответ.';
+    }
     lastText = t.text;
-    if (level !== 3) t.dec = true;
     task = t; done = false; tries = 0;
-    $('meta').textContent = LEVEL_NAME[level] + '. Найди x и запиши ответ.';
+    $('form').hidden = false;
+    $('meta').textContent = meta;
     $('eq').textContent = t.text;
     $('ans').value = ''; $('ans').disabled = false;
     $('err').hidden = true;
@@ -308,9 +487,17 @@
     }
     tries++;
     var vs = fmt(v, task.dec);
-    var lv = task.left(v);
-    var rs = task.rs || fmt(task.right, task.dec);
-    var check = lv ? task.ls(vs) + ' = ' + fmt(lv, task.dec) + ', а нужно ' + rs : 'на ноль делить нельзя';
+    var check;
+    if (task.custom) {
+      var lr = task.left(v);
+      if (!lr) check = 'на ноль делить нельзя';
+      else if (task.rightHasX) check = 'слева ' + task.ls(vs) + ' = ' + fmt(lr.l, task.dec) + ', справа ' + task.rsx(vs) + ' = ' + fmt(lr.r, task.dec);
+      else check = task.ls(vs) + ' = ' + fmt(lr.l, task.dec) + ', а нужно ' + fmt(lr.r, task.dec);
+    } else {
+      var lv = task.left(v);
+      var rs = task.rs || fmt(task.right, task.dec);
+      check = lv ? task.ls(vs) + ' = ' + fmt(lv, task.dec) + ', а нужно ' + rs : 'на ноль делить нельзя';
+    }
     var extra = tries >= 2 ? ' Можно открыть подсказку.' : '';
     $('note').innerHTML = '<div class="note calm">Давай проверим подстановкой:<span class="check">' + esc(check) + '</span>Пока не сходится. Попробуй ещё раз.' + extra + '</div>';
     $('ans').select();
@@ -326,16 +513,93 @@
   $('showBtn').addEventListener('click', function () {
     finish('<div class="note calm">Вот решение. Разбери его и попробуй следующее уравнение сама.' + stepsHtml() + '</div>');
   });
-  $('nextBtn').addEventListener('click', newTask);
+  $('nextBtn').addEventListener('click', function () { if (level === 'my') myIdx++; newTask(); });
 
   var lb = document.querySelectorAll('[data-level]');
   for (var i = 0; i < lb.length; i++) lb[i].addEventListener('click', function () {
-    level = Number(this.getAttribute('data-level'));
+    var lv = this.getAttribute('data-level');
+    level = lv === 'my' ? 'my' : Number(lv);
+    if (level === 'my') myIdx = 0;
     for (var j = 0; j < lb.length; j++) lb[j].setAttribute('aria-pressed', String(lb[j] === this));
     newTask();
   });
 
-  newTask();
+  function finishList() {
+    task = null; done = true;
+    $('meta').textContent = 'Свои уравнения';
+    $('eq').textContent = 'Все уравнения решены!';
+    $('form').hidden = true;
+    $('check').hidden = true; $('hintBtn').hidden = true; $('showBtn').hidden = true; $('nextBtn').hidden = true;
+    $('note').innerHTML = '<div class="actions"><button class="btn primary" id="againBtn" type="button">Ещё раз</button></div>';
+    $('againBtn').addEventListener('click', function () { myIdx = 0; newTask(); });
+  }
+
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  function buildList(lines) {
+    var out = [], report = [];
+    lines.forEach(function (line) {
+      var l = line.trim(); if (!l) return;
+      try { var t = buildCustom(l); out.push(t); report.push({ ok: true, line: t.text, x: fmt(t.x, t.dec) }); }
+      catch (e) { report.push({ ok: false, line: l, msg: e.message }); }
+    });
+    return { list: out, report: report };
+  }
+
+  function setMy(list) {
+    myList = list; myIdx = 0;
+    $('myBtn').hidden = !list.length;
+  }
+
+  function selectLevel(lv) {
+    for (var j = 0; j < lb.length; j++) lb[j].setAttribute('aria-pressed', String(lb[j].getAttribute('data-level') === String(lv)));
+    level = lv; newTask();
+  }
+
+  function linkFor(lines) {
+    var base = location.href.split('?')[0].split('#')[0];
+    return base + '?eq=' + encodeURIComponent(lines.join('\n'));
+  }
+
+  function refreshEditor() {
+    var lines = $('ta').value.split('\n').filter(function (l) { return l.trim(); });
+    var r = buildList(lines);
+    $('parsed').innerHTML = r.report.map(function (x) {
+      return x.ok ? '<li class="ok">✓ ' + esc(x.line) + ' → x = ' + esc(x.x) + '</li>'
+                  : '<li class="bad">✗ ' + esc(x.line) + ' — ' + esc(x.msg) + '</li>';
+    }).join('');
+    $('link').textContent = lines.length ? linkFor(lines) : '';
+    return { lines: lines, r: r };
+  }
+
+  $('editBtn').addEventListener('click', function () {
+    var ed = $('editor');
+    if (!$('ta').value) $('ta').value = (store('ur-my') || '5x + 3 = 28\n72 : x = 8\n(x − 4) · 3 = 15\nx + 2,5 = 7\nx − 3/8 = 1/8');
+    refreshEditor();
+    ed.hidden = false; $('ta').focus();
+  });
+  $('ta').addEventListener('input', refreshEditor);
+  $('cancelBtn').addEventListener('click', function () { $('editor').hidden = true; });
+  $('saveBtn').addEventListener('click', function () {
+    var st = refreshEditor();
+    if (!st.r.list.length) { $('ta').focus(); return; }
+    store('ur-my', st.lines.join('\n'));
+    setMy(st.r.list);
+    $('editor').hidden = true;
+    selectLevel('my');
+  });
+
+  var fromUrl = null;
+  try { fromUrl = new URLSearchParams(location.search).get('eq'); } catch (e) {}
+  var savedMy = store('ur-my');
+  if (fromUrl) {
+    setMy(buildList(fromUrl.split('\n')).list);
+    $('ta').value = fromUrl;
+    if (myList.length) { selectLevel('my'); } else { newTask(); }
+  } else {
+    if (savedMy) setMy(buildList(savedMy.split('\n')).list);
+    newTask();
+  }
 })();
 </script>
 </body>
