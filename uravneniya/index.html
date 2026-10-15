@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Реши уравнение</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap">
+<style>
+  :root {
+    --paper: #fdfdfb;
+    --grid: #dfe7f1;
+    --ink: #24346b;
+    --fg: #1f2329;
+    --muted: #6a707b;
+    --line: #e3e6eb;
+    --bg: #f2f3f5;
+    --green: #2b8a3e;
+    --green-soft: #e6f4ea;
+    --calm: #eef1f6;
+    --hint: #fff4d1;
+    --hint-ink: #6b4b00;
+    --red: #c92a2a;
+    --hand: "Caveat", "Comic Sans MS", "Segoe Print", cursive;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .top h1 { font-size: 18px; font-weight: 600; margin: 0; margin-right: auto; }
+  .seg { display: flex; flex-wrap: wrap; gap: 2px; background: #fff; border: 0.5px solid var(--line); border-radius: 8px; padding: 2px; }
+  .seg button { border: 0; background: transparent; font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; cursor: pointer; color: var(--fg); }
+  .seg button[aria-pressed="true"] { background: var(--fg); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .score { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .score b { color: var(--green); font-size: 16px; }
+
+  .sheet {
+    position: relative;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    border: 0.5px solid var(--line);
+    border-radius: 6px;
+    padding: 18px 20px 20px 52px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .sheet::before { content: ""; position: absolute; top: 0; bottom: 0; left: 36px; width: 1.5px; background: #f0a3a1; }
+  .meta { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  .eq { font-family: var(--hand); font-size: 44px; line-height: 1.1; color: var(--ink); margin: 4px 0 14px; }
+
+  .answer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .answer label { font-family: var(--hand); font-size: 36px; color: var(--ink); }
+  .answer input {
+    font-family: var(--hand); font-size: 34px; color: var(--ink);
+    width: 160px; padding: 2px 10px;
+    background: rgba(255,255,255,0.85);
+    border: 0; border-bottom: 2px solid var(--ink);
+    border-radius: 4px 4px 0 0;
+    outline: none;
+  }
+  .answer input:focus { background: #fff; border-bottom-color: #3b5bdb; }
+  .err { width: 100%; margin: 0; font-size: 13px; color: var(--red); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .btn { font: inherit; font-size: 14px; border: 0.5px solid #c9ced8; background: #fff; color: var(--fg); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--fg); color: #fff; border-color: var(--fg); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .note { margin-top: 14px; border-radius: 8px; padding: 10px 14px; font-size: 15px; }
+  .note.good { background: var(--green-soft); color: #1d5e2a; }
+  .note.calm { background: var(--calm); color: #2d3440; }
+  .note.hint { background: var(--hint); color: var(--hint-ink); }
+  .note .check { font-family: var(--hand); font-size: 26px; color: var(--ink); display: block; line-height: 1.2; margin-top: 2px; }
+  .steps { list-style: none; margin: 8px 0 0; padding: 0; }
+  .steps li { font-family: var(--hand); font-size: 30px; line-height: 1.2; color: var(--ink); }
+
+  .help { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+  @media (max-width: 480px) {
+    .sheet { padding: 14px 12px 16px 40px; }
+    .sheet::before { left: 28px; }
+    .eq { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Реши уравнение</h1>
+    <div class="seg" role="group" aria-label="Уровень">
+      <button data-level="1" aria-pressed="true">В одно действие</button>
+      <button data-level="2" aria-pressed="false">В два действия</button>
+      <button data-level="3" aria-pressed="false">С дробями</button>
+    </div>
+    <span class="score">Решено: <b id="solved">0</b></span>
+  </div>
+
+  <div class="sheet" aria-live="polite">
+    <p class="meta" id="meta"></p>
+    <div class="eq" id="eq"></div>
+    <form class="answer" id="form" autocomplete="off">
+      <label for="ans">x =</label>
+      <input id="ans" type="text" inputmode="decimal" aria-describedby="err" spellcheck="false">
+      <p class="err" id="err" hidden></p>
+    </form>
+    <div class="actions" id="actions">
+      <button class="btn primary" id="check" type="submit" form="form">Проверить</button>
+      <button class="btn" id="hintBtn" type="button">Подсказка</button>
+      <button class="btn" id="showBtn" type="button">Покажи решение</button>
+      <button class="btn primary" id="nextBtn" type="button" hidden>Следующее</button>
+    </div>
+    <div id="note"></div>
+  </div>
+
+  <p class="help">Ответ можно писать целым числом, десятичной дробью (4,5) или обыкновенной (3/7).</p>
+</div>
+
+<script>
+(function () {
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = b; b = a % b; a = t; } return a; }
+  function F(n, d) {
+    if (d === undefined) d = 1;
+    if (d < 0) { n = -n; d = -d; }
+    var g = gcd(n, d) || 1;
+    return { n: n / g, d: d / g };
+  }
+  function add(a, b) { return F(a.n * b.d + b.n * a.d, a.d * b.d); }
+  function sub(a, b) { return F(a.n * b.d - b.n * a.d, a.d * b.d); }
+  function mul(a, b) { return F(a.n * b.n, a.d * b.d); }
+  function div(a, b) { return F(a.n * b.d, a.d * b.n); }
+  function eq(a, b) { return a.n * b.d === b.n * a.d; }
+
+  function onlyTwosFives(d) { while (d % 2 === 0) d /= 2; while (d % 5 === 0) d /= 5; return d === 1; }
+  function fmt(f, dec) {
+    if (f.d === 1) return String(f.n);
+    if (dec && onlyTwosFives(f.d)) {
+      var k = 0, p = 1;
+      while (p % f.d !== 0) { p *= 10; k++; }
+      var num = Math.abs(f.n) * (p / f.d);
+      var s = String(num);
+      while (s.length < k + 1) s = '0' + s;
+      return (f.n < 0 ? '−' : '') + s.slice(0, -k) + ',' + s.slice(-k);
+    }
+    return (f.n < 0 ? '−' : '') + Math.abs(f.n) + '/' + f.d;
+  }
+  function wrap(s) { return /[\/−-]/.test(s) ? '(' + s + ')' : s; }
+
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  var I = function (n) { return F(n, 1); };
+
+  var GEN = {
+    1: [
+      function () { var X = rnd(3, 60), A = rnd(2, 40), B = X + A; return {
+        text: 'x + ' + A + ' = ' + B, left: function (x) { return add(x, I(A)); }, ls: function (v) { return v + ' + ' + A; }, right: I(B),
+        x: I(X), steps: ['x = ' + B + ' − ' + A, 'x = ' + X],
+        rule: 'x — неизвестное слагаемое. Чтобы его найти, из суммы вычитают известное слагаемое.' }; },
+      function () { var X = rnd(3, 60), A = rnd(2, 40), B = X + A; return {
+        text: A + ' + x = ' + B, left: function (x) { return add(I(A), x); }, ls: function (v) { return A + ' + ' + v; }, right: I(B),
+        x: I(X), steps: ['x = ' + B + ' − ' + A, 'x = ' + X],
+        rule: 'x — неизвестное слагаемое. Чтобы его найти, из суммы вычитают известное слагаемое.' }; },
+      function () { var X = rnd(20, 90), A = rnd(2, X - 2), B = X - A; return {
+        text: 'x − ' + A + ' = ' + B, left: function (x) { return sub(x, I(A)); }, ls: function (v) { return v + ' − ' + A; }, right: I(B),
+        x: I(X), steps: ['x = ' + B + ' + ' + A, 'x = ' + X],
+        rule: 'x — уменьшаемое. Чтобы его найти, к разности прибавляют вычитаемое.' }; },
+      function () { var A = rnd(20, 90), X = rnd(2, A - 2), B = A - X; return {
+        text: A + ' − x = ' + B, left: function (x) { return sub(I(A), x); }, ls: function (v) { return A + ' − ' + v; }, right: I(B),
+        x: I(X), steps: ['x = ' + A + ' − ' + B, 'x = ' + X],
+        rule: 'x — вычитаемое. Чтобы его найти, из уменьшаемого вычитают разность.' }; },
+      function () { var A = rnd(2, 9), X = rnd(2, 12), B = A * X; return {
+        text: A + 'x = ' + B, left: function (x) { return mul(I(A), x); }, ls: function (v) { return A + ' · ' + v; }, right: I(B),
+        x: I(X), steps: ['x = ' + B + ' : ' + A, 'x = ' + X],
+        rule: 'x — неизвестный множитель. Чтобы его найти, произведение делят на известный множитель.' }; },
+      function () { var A = rnd(2, 9), Q = rnd(2, 12), X = A * Q; return {
+        text: 'x : ' + A + ' = ' + Q, left: function (x) { return div(x, I(A)); }, ls: function (v) { return v + ' : ' + A; }, right: I(Q),
+        x: I(X), steps: ['x = ' + Q + ' · ' + A, 'x = ' + X],
+        rule: 'x — делимое. Чтобы его найти, частное умножают на делитель.' }; },
+      function () { var X = rnd(2, 9), Q = rnd(2, 12), A = X * Q; return {
+        text: A + ' : x = ' + Q, left: function (x) { return x.n === 0 ? null : div(I(A), x); }, ls: function (v) { return A + ' : ' + v; }, right: I(Q),
+        x: I(X), steps: ['x = ' + A + ' : ' + Q, 'x = ' + X],
+        rule: 'x — делитель. Чтобы его найти, делимое делят на частное.' }; }
+    ],
+    2: [
+      function () { var A = rnd(2, 9), X = rnd(2, 10), C = rnd(1, 30), P = A * X, D = P + C; return {
+        text: A + 'x + ' + C + ' = ' + D, left: function (x) { return add(mul(I(A), x), I(C)); }, ls: function (v) { return A + ' · ' + v + ' + ' + C; }, right: I(D),
+        x: I(X), steps: [A + 'x = ' + D + ' − ' + C, A + 'x = ' + P, 'x = ' + P + ' : ' + A, 'x = ' + X],
+        rule: 'Сначала найди ' + A + 'x как неизвестное слагаемое. Потом найди x как неизвестный множитель.' }; },
+      function () { var A = rnd(2, 9), X = rnd(2, 10), P = A * X, C = rnd(1, P - 1), D = P - C; return {
+        text: A + 'x − ' + C + ' = ' + D, left: function (x) { return sub(mul(I(A), x), I(C)); }, ls: function (v) { return A + ' · ' + v + ' − ' + C; }, right: I(D),
+        x: I(X), steps: [A + 'x = ' + D + ' + ' + C, A + 'x = ' + P, 'x = ' + P + ' : ' + A, 'x = ' + X],
+        rule: 'Сначала найди ' + A + 'x как уменьшаемое. Потом найди x как неизвестный множитель.' }; },
+      function () { var A = rnd(2, 9), X = rnd(2, 15), C = rnd(1, 15), S = X + C, D = S * A; return {
+        text: '(x + ' + C + ') · ' + A + ' = ' + D, left: function (x) { return mul(add(x, I(C)), I(A)); }, ls: function (v) { return '(' + v + ' + ' + C + ') · ' + A; }, right: I(D),
+        x: I(X), steps: ['x + ' + C + ' = ' + D + ' : ' + A, 'x + ' + C + ' = ' + S, 'x = ' + S + ' − ' + C, 'x = ' + X],
+        rule: 'Скобка — неизвестный множитель. Сначала найди, чему равна скобка, потом найди x как неизвестное слагаемое.' }; },
+      function () { var A = rnd(2, 9), C = rnd(1, 15), R = rnd(2, 10), X = C + R, D = R * A; return {
+        text: '(x − ' + C + ') · ' + A + ' = ' + D, left: function (x) { return mul(sub(x, I(C)), I(A)); }, ls: function (v) { return '(' + v + ' − ' + C + ') · ' + A; }, right: I(D),
+        x: I(X), steps: ['x − ' + C + ' = ' + D + ' : ' + A, 'x − ' + C + ' = ' + R, 'x = ' + R + ' + ' + C, 'x = ' + X],
+        rule: 'Скобка — неизвестный множитель. Сначала найди, чему равна скобка, потом найди x как уменьшаемое.' }; },
+      function () { var A = rnd(2, 9), Q = rnd(2, 10), X = A * Q, C = rnd(1, 20), D = Q + C; return {
+        text: 'x : ' + A + ' + ' + C + ' = ' + D, left: function (x) { return add(div(x, I(A)), I(C)); }, ls: function (v) { return v + ' : ' + A + ' + ' + C; }, right: I(D),
+        x: I(X), steps: ['x : ' + A + ' = ' + D + ' − ' + C, 'x : ' + A + ' = ' + Q, 'x = ' + Q + ' · ' + A, 'x = ' + X],
+        rule: 'Сначала найди x : ' + A + ' как неизвестное слагаемое. Потом найди x как делимое.' }; }
+    ],
+    3: [
+      function () { var X = F(rnd(11, 99), 10), A = F(rnd(11, 59), 10), B = add(X, A); return {
+        dec: true, text: 'x + ' + fmt(A, 1) + ' = ' + fmt(B, 1), left: function (x) { return add(x, A); }, ls: function (v) { return v + ' + ' + fmt(A, 1); }, right: B,
+        x: X, steps: ['x = ' + fmt(B, 1) + ' − ' + fmt(A, 1), 'x = ' + fmt(X, 1)],
+        rule: 'x — неизвестное слагаемое: из суммы вычти известное слагаемое. Запятую пиши под запятой.' }; },
+      function () { var xn = rnd(35, 99), an = rnd(11, xn - 11), X = F(xn, 10), A = F(an, 10), B = sub(X, A); return {
+        dec: true, text: 'x − ' + fmt(A, 1) + ' = ' + fmt(B, 1), left: function (x) { return sub(x, A); }, ls: function (v) { return v + ' − ' + fmt(A, 1); }, right: B,
+        x: X, steps: ['x = ' + fmt(B, 1) + ' + ' + fmt(A, 1), 'x = ' + fmt(X, 1)],
+        rule: 'x — уменьшаемое: к разности прибавь вычитаемое. Запятую пиши под запятой.' }; },
+      function () { var A = pick([F(1, 2), F(1, 5), F(2, 5), F(3, 2), F(5, 2)]), X = I(rnd(2, 12)), B = mul(A, X); return {
+        dec: true, text: fmt(A, 1) + 'x = ' + fmt(B, 1), left: function (x) { return mul(A, x); }, ls: function (v) { return fmt(A, 1) + ' · ' + wrap(v); }, right: B,
+        x: X, steps: ['x = ' + fmt(B, 1) + ' : ' + fmt(A, 1), 'x = ' + fmt(X, 1)],
+        rule: 'x — неизвестный множитель: произведение раздели на известный множитель.' }; },
+      function () { var d = rnd(5, 12), xn = rnd(1, d - 2), an = rnd(1, d - 1 - xn), bn = xn + an, A = F(an, d), X = F(xn, d), B = F(bn, d); return {
+        text: 'x + ' + an + '/' + d + ' = ' + bn + '/' + d, left: function (x) { return add(x, A); }, ls: function (v) { return wrap(v) + ' + ' + an + '/' + d; }, right: B, rs: bn + '/' + d,
+        x: X, steps: ['x = ' + bn + '/' + d + ' − ' + an + '/' + d, 'x = ' + xn + '/' + d + (gcd(xn, d) > 1 ? ' = ' + fmt(X, 0) : '')],
+        rule: 'x — неизвестное слагаемое. Знаменатели одинаковые, поэтому вычитай только числители.' }; },
+      function () { var d = rnd(5, 12), xn = rnd(3, d - 1), an = rnd(1, xn - 1), bn = xn - an, A = F(an, d), X = F(xn, d), B = F(bn, d); return {
+        text: 'x − ' + an + '/' + d + ' = ' + bn + '/' + d, left: function (x) { return sub(x, A); }, ls: function (v) { return wrap(v) + ' − ' + an + '/' + d; }, right: B, rs: bn + '/' + d,
+        x: X, steps: ['x = ' + bn + '/' + d + ' + ' + an + '/' + d, 'x = ' + xn + '/' + d + (gcd(xn, d) > 1 ? ' = ' + fmt(X, 0) : '')],
+        rule: 'x — уменьшаемое. Знаменатели одинаковые, поэтому складывай только числители.' }; }
+    ]
+  };
+
+  var LEVEL_NAME = { 1: 'В одно действие', 2: 'В два действия', 3: 'С дробями' };
+  var level = 1, task = null, solved = 0, done = false, lastText = '', tries = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function newTask() {
+    var t;
+    do { t = pick(GEN[level])(); } while (t.text === lastText);
+    lastText = t.text;
+    if (level !== 3) t.dec = true;
+    task = t; done = false; tries = 0;
+    $('meta').textContent = LEVEL_NAME[level] + '. Найди x и запиши ответ.';
+    $('eq').textContent = t.text;
+    $('ans').value = ''; $('ans').disabled = false;
+    $('err').hidden = true;
+    $('note').innerHTML = '';
+    $('check').hidden = false; $('hintBtn').hidden = false; $('showBtn').hidden = false; $('nextBtn').hidden = true;
+    $('ans').focus({ preventScroll: true });
+  }
+
+  function parse(s) {
+    s = s.replace(/\s+/g, ' ').trim().replace(/^x\s*=\s*/i, '').replace(/−/g, '-').replace(/,/g, '.');
+    var m;
+    if ((m = s.match(/^(-?)(\d+)\s+(\d+)\/(\d+)$/))) {
+      if (+m[4] === 0) return null;
+      var f = add(I(+m[2]), F(+m[3], +m[4]));
+      return m[1] ? F(-f.n, f.d) : f;
+    }
+    if ((m = s.match(/^(-?\d+)\/(\d+)$/))) return +m[2] === 0 ? null : F(+m[1], +m[2]);
+    if ((m = s.match(/^(-?)(\d*)\.(\d+)$/)) || (m = s.match(/^(-?)(\d+)()$/))) {
+      var ip = m[2] || '0', fp = m[3] || '';
+      var n = parseInt(ip + fp, 10), d = Math.pow(10, fp.length);
+      return F(m[1] ? -n : n, d);
+    }
+    return null;
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function stepsHtml() { return '<ol class="steps">' + task.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>'; }
+
+  function finish(html) {
+    done = true;
+    $('note').innerHTML = html;
+    $('ans').disabled = true;
+    $('check').hidden = true; $('hintBtn').hidden = true; $('showBtn').hidden = true; $('nextBtn').hidden = false;
+    $('nextBtn').focus({ preventScroll: true });
+  }
+
+  var CHEERS = ['Верно!', 'Отлично!', 'Точно!', 'Правильно!', 'Здорово!'];
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (done) return;
+    var raw = $('ans').value;
+    if (!raw.trim()) { showErr('Сначала напиши ответ.'); return; }
+    var v = parse(raw);
+    if (!v) { showErr('Напиши число, например 12, 4,5 или 3/7.'); return; }
+    $('err').hidden = true;
+    if (eq(v, task.x)) {
+      solved++; $('solved').textContent = String(solved);
+      finish('<div class="note good"><b>' + pick(CHEERS) + '</b> x = ' + esc(fmt(task.x, task.dec)) + stepsHtml() + '</div>');
+      return;
+    }
+    tries++;
+    var vs = fmt(v, task.dec);
+    var lv = task.left(v);
+    var rs = task.rs || fmt(task.right, task.dec);
+    var check = lv ? task.ls(vs) + ' = ' + fmt(lv, task.dec) + ', а нужно ' + rs : 'на ноль делить нельзя';
+    var extra = tries >= 2 ? ' Можно открыть подсказку.' : '';
+    $('note').innerHTML = '<div class="note calm">Давай проверим подстановкой:<span class="check">' + esc(check) + '</span>Пока не сходится. Попробуй ещё раз.' + extra + '</div>';
+    $('ans').select();
+  });
+
+  function showErr(t) { var e = $('err'); e.textContent = t; e.hidden = false; $('ans').focus(); }
+  $('ans').addEventListener('input', function () { $('err').hidden = true; });
+
+  $('hintBtn').addEventListener('click', function () {
+    $('note').innerHTML = '<div class="note hint"><b>Подсказка.</b> ' + esc(task.rule) + '</div>';
+    $('ans').focus({ preventScroll: true });
+  });
+  $('showBtn').addEventListener('click', function () {
+    finish('<div class="note calm">Вот решение. Разбери его и попробуй следующее уравнение сама.' + stepsHtml() + '</div>');
+  });
+  $('nextBtn').addEventListener('click', newTask);
+
+  var lb = document.querySelectorAll('[data-level]');
+  for (var i = 0; i < lb.length; i++) lb[i].addEventListener('click', function () {
+    level = Number(this.getAttribute('data-level'));
+    for (var j = 0; j < lb.length; j++) lb[j].setAttribute('aria-pressed', String(lb[j] === this));
+    newTask();
+  });
+
+  newTask();
+})();
+</script>
+</body>
+</html>
